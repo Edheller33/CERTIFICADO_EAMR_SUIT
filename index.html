@@ -16,6 +16,8 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;800;900&family=Montserrat:wght@300;400;500;600;700&family=Share+Tech+Mono&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
 <script>
 tailwind.config = { theme: { extend: {
   colors: { gold:{100:'#FFF3C4',300:'#FCE082',400:'#E6C25A',500:'#D4AF37',600:'#AA820A',800:'#5C4402'},
@@ -41,6 +43,9 @@ body{ background:#090c13; }
   .song-hidden{ display:none !important; }
   body.print-all .song-hidden{ display:block !important; }
 }
+.pdf-mode .doc-page{ background:#ffffff !important; box-shadow:none !important; border-color:#d4af37 !important; }
+.pdf-mode .doc-page, .pdf-mode .doc-page *{ color:#161616 !important; }
+.pdf-mode .doc-page .gold-gradient-text, .pdf-mode .doc-page .text-gold-300, .pdf-mode .doc-page .text-gold-400{ -webkit-text-fill-color:#8a6a08 !important; color:#8a6a08 !important; }
 .gold-border{ border:2px solid; border-image:linear-gradient(135deg,#fce082 0%,#d4af37 50%,#5c4402 100%) 1; }
 .gold-gradient-text{ background:linear-gradient(135deg,#fff3c4 0%,#e6c25a 50%,#aa820a 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .gold-button{ background:linear-gradient(135deg,#d4af37 0%,#aa820a 100%); transition:all .2s ease; }
@@ -89,8 +94,10 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
     </nav>
 
     <div class="flex flex-wrap gap-2">
-      <button onclick="haptic(); printCurrent();" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-print"></i>Imprimir vista actual</button>
+      <button onclick="haptic(); downloadPDF();" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar PDF (vista actual)</button>
+      <button onclick="haptic(); printCurrent();" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-print"></i>Imprimir vista actual</button>
       <button onclick="haptic(); printAll();" class="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-500/40 text-blue-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-layer-group"></i>Imprimir todo (paquete)</button>
+      <button onclick="haptic(); toggleWordModal();" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Word a PDF</button>
       <button onclick="haptic(); exportJSON();" class="bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/40 text-emerald-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk"></i>Guardar proyecto</button>
       <button onclick="document.getElementById('loadJsonInput').click()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-folder-open"></i>Cargar proyecto</button>
       <input type="file" id="loadJsonInput" accept="application/json" class="hidden" onchange="importJSON(event)">
@@ -98,6 +105,41 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
     </div>
   </div>
 </header>
+
+<div id="wordModal" class="no-print hidden fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex justify-center items-center p-4">
+  <div class="bg-cardBg border border-gold-500/40 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl">
+    <div class="flex justify-between items-center mb-4 border-b border-slate-700 pb-3">
+      <div class="flex items-center gap-2">
+        <i class="fa-solid fa-file-word text-purple-300 text-xl"></i>
+        <h3 class="font-cinzel text-lg font-bold text-gold-400">Conversor Word (.docx) a PDF</h3>
+      </div>
+      <button onclick="haptic(); toggleWordModal()" class="text-slate-400 hover:text-white text-xl"><i class="fa-solid fa-xmark"></i></button>
+    </div>
+    <div class="space-y-4 text-sm flex-1 overflow-y-auto pr-1">
+      <p class="text-xs text-slate-400">Úsalo para convertir cualquier documento Word externo (por ejemplo, uno que edites a mano) a PDF. Los 3 documentos generados por EAMR Suite (Certificado, Contrato, Anexo Técnico) ya se descargan directo en PDF con el botón "Descargar PDF".</p>
+      <div class="bg-slate-900 p-4 rounded-lg border border-slate-700 text-center">
+        <i class="fa-solid fa-cloud-arrow-up text-3xl text-gold-400 mb-2"></i>
+        <label class="block text-slate-200 font-semibold mb-1">Selecciona tu archivo Word (.docx)</label>
+        <input type="file" id="wordFileInput" accept=".docx" class="hidden" onchange="processWordFile(event)">
+        <button onclick="document.getElementById('wordFileInput').click()" class="gold-button px-4 py-2 text-slate-950 font-bold rounded-md text-xs inline-flex items-center gap-2"><i class="fa-solid fa-folder-open"></i>Explorar Archivo</button>
+      </div>
+      <div id="wordStatus" class="hidden text-xs p-3 rounded border"></div>
+      <div id="wordPreviewContainer" class="hidden space-y-2">
+        <div class="flex justify-between items-center flex-wrap gap-2">
+          <span class="text-xs font-semibold text-gold-300 uppercase">Vista previa:</span>
+          <div class="flex gap-2">
+            <button onclick="haptic(); downloadWordPDF();" class="gold-button px-3 py-1 text-slate-950 font-bold rounded text-xs flex items-center gap-1"><i class="fa-solid fa-file-pdf"></i>Descargar PDF</button>
+            <button onclick="haptic(); printWordDocument();" class="bg-slate-800 border border-slate-600 px-3 py-1 rounded text-xs flex items-center gap-1"><i class="fa-solid fa-print"></i>Imprimir</button>
+          </div>
+        </div>
+        <div id="wordPreview" class="bg-white text-slate-900 p-6 rounded shadow-inner max-h-60 overflow-y-auto font-sans text-xs leading-relaxed border border-slate-300"></div>
+      </div>
+    </div>
+    <div class="pt-4 border-t border-slate-800 flex justify-end">
+      <button onclick="haptic(); toggleWordModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs">Cerrar</button>
+    </div>
+  </div>
+</div>
 
 <main class="max-w-4xl mx-auto px-3 sm:px-4 pt-6">
 
@@ -121,7 +163,7 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
           <input type="text" id="gCedenteCiudad" class="w-full rounded px-3 py-2 text-sm text-slate-200" oninput="onGeneralInput('cedenteCiudad', this.value)">
         </div>
         <div>
-          <label class="block text-slate-300 mb-1 text-sm">Cesionario (cliente / negocio)</label>
+          <label class="block text-slate-300 mb-1 text-sm">Nombre del Restaurante / Cliente (Cesionario)</label>
           <input type="text" id="gCesionarioNombre" placeholder="Ej. APAI Do BRASIL" class="w-full rounded px-3 py-2 text-sm text-gold-300 font-semibold" oninput="onGeneralInput('cesionarioNombre', this.value)">
         </div>
         <div>
@@ -224,6 +266,12 @@ function bufferToHex(buf){ return Array.from(new Uint8Array(buf)).map(b=>b.toStr
 function formatCode(prefix, hex){ const h = hex.toUpperCase().slice(0,20); const groups = h.match(/.{1,4}/g).join('-'); return prefix + '-' + groups; }
 function formatDuration(sec){ if(!sec && sec!==0) return '--'; const m = Math.floor(sec/60), s = Math.round(sec%60).toString().padStart(2,'0'); return m+':'+s; }
 function saveLocal(){ try{ localStorage.setItem('eamr_suite_state', JSON.stringify(state)); }catch(e){} }
+function titleFromFilename(filename){
+  let name = filename.replace(/\.[^/.]+$/, '');
+  name = name.replace(/[_\-]+/g, ' ').replace(/\s+/g,' ').trim();
+  return name.replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
+}
+function slugify(s){ return (s||'documento').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'documento'; }
 
 /* ================= HASH + ADN ACÚSTICO ================= */
 async function handleAudioFile(id, file){
@@ -232,6 +280,7 @@ async function handleAudioFile(id, file){
   song.fileName = file.name;
   song.fileSize = file.size;
   setSongStatus(id, 'Calculando hash y ADN acústico...');
+  if(!song.title || !song.title.trim()) song.title = titleFromFilename(file.name);
   try{
     const buffer = await file.arrayBuffer();
     const hashBuf = await crypto.subtle.digest('SHA-256', buffer);
@@ -639,6 +688,73 @@ function printAll(){
     window.print();
     setTimeout(()=>document.body.classList.remove('print-all'), 300);
   }, 50);
+}
+
+/* ================= DESCARGA DIRECTA DE PDF ================= */
+function getActiveTabId(){ const el = document.querySelector('.tab-section.active'); return el ? el.id : null; }
+async function downloadPDF(){
+  const activeId = getActiveTabId();
+  const g = state.general;
+  let el, filename;
+  if(activeId==='tabCert'){
+    el = document.querySelector('#certContainer .song-block:not(.song-hidden)');
+    const s = state.songs.find(sg=>sg.id===state.selectedCert);
+    filename = 'Certificado_' + slugify(s && s.title) + '.pdf';
+  } else if(activeId==='tabContrato'){
+    el = document.getElementById('contratoContainer');
+    filename = 'Contrato_' + slugify(g.cesionarioNombre) + '_' + slugify(g.folio) + '.pdf';
+  } else if(activeId==='tabAnexo'){
+    el = document.querySelector('#anexoContainer .song-block:not(.song-hidden)');
+    const s = state.songs.find(sg=>sg.id===state.selectedAnexo);
+    filename = 'Anexo_Tecnico_' + slugify(s && s.title) + '.pdf';
+  } else {
+    alert('Ve a la pestaña Certificado, Contrato o Anexo Técnico para descargar su PDF.');
+    return;
+  }
+  if(!el){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
+  document.body.classList.add('pdf-mode');
+  const opts = { margin:8, filename, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff'}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{mode:['css','legacy']} };
+  try{
+    await html2pdf().set(opts).from(el).save();
+  }catch(err){
+    alert('No se pudo generar el PDF (' + err.message + '). Puedes usar "Imprimir vista actual" y elegir Guardar como PDF.');
+  }
+  document.body.classList.remove('pdf-mode');
+}
+
+/* ================= CONVERSOR WORD A PDF ================= */
+function toggleWordModal(){ document.getElementById('wordModal').classList.toggle('hidden'); }
+async function processWordFile(evt){
+  const file = evt.target.files[0];
+  if(!file) return;
+  const statusEl = document.getElementById('wordStatus');
+  statusEl.classList.remove('hidden');
+  statusEl.className = 'text-xs p-3 rounded border border-blue-500/40 bg-blue-900/20 text-blue-200';
+  statusEl.textContent = 'Convirtiendo "' + file.name + '"...';
+  try{
+    const arrayBuffer = await file.arrayBuffer();
+    const result = await mammoth.convertToHtml({ arrayBuffer });
+    document.getElementById('wordPreview').innerHTML = result.value;
+    document.getElementById('wordPreviewContainer').classList.remove('hidden');
+    statusEl.className = 'text-xs p-3 rounded border border-emerald-500/40 bg-emerald-900/20 text-emerald-200';
+    statusEl.textContent = 'Documento convertido. Ya puedes descargarlo en PDF o imprimirlo.';
+  }catch(err){
+    statusEl.className = 'text-xs p-3 rounded border border-red-500/40 bg-red-900/20 text-red-200';
+    statusEl.textContent = 'No se pudo leer el archivo (' + err.message + ').';
+  }
+}
+function printWordDocument(){
+  const w = window.open('', '_blank');
+  w.document.write('<html><head><title>Documento</title></head><body>' + document.getElementById('wordPreview').innerHTML + '</body></html>');
+  w.document.close();
+  w.focus();
+  setTimeout(()=>{ w.print(); }, 300);
+}
+async function downloadWordPDF(){
+  const el = document.getElementById('wordPreview');
+  const opts = { margin:10, filename:'documento_convertido.pdf', image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff'}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'} };
+  try{ await html2pdf().set(opts).from(el).save(); }
+  catch(err){ alert('No se pudo generar el PDF: ' + err.message); }
 }
 
 /* ================= GUARDAR / CARGAR PROYECTO ================= */
