@@ -292,13 +292,13 @@ function titleFromFilename(filename){
 }
 function slugify(s){ return (s||'documento').toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'') || 'documento'; }
 
-/* ================= HASH + ADN ACÚSTICO ================= */
+/* ================= HASH + ADN ACÚSTICO + GÉNERO/ESTILO ================= */
 async function handleAudioFile(id, file){
   const song = state.songs.find(s=>s.id===id);
   if(!song) return;
   song.fileName = file.name;
   song.fileSize = file.size;
-  setSongStatus(id, 'Calculando hash y ADN acústico...');
+  setSongStatus(id, 'Calculando hash, ADN acústico y estilo musical...');
   if(!song.title || !song.title.trim()) song.title = titleFromFilename(file.name);
   try{
     const buffer = await file.arrayBuffer();
@@ -312,15 +312,34 @@ async function handleAudioFile(id, file){
     song.duration = audioBuffer.duration;
     song.sampleRate = audioBuffer.sampleRate;
     song.channels = audioBuffer.numberOfChannels;
-    song.dna = await generateAcousticDNA(audioBuffer);
+    const mono = getMonoChannel(audioBuffer);
+    song.dna = await generateAcousticDNA(audioBuffer, mono);
+
+    const guess = estimateGenre(mono, audioBuffer.sampleRate);
+    if(guess){
+      song.genre = 'Regional Mexicano · ' + guess.estilo;
+      song.genreAuto = true;
+      song.tempoBpm = guess.bpm;
+    }
     ctx.close();
-    setSongStatus(id, 'Datos extraídos correctamente del archivo "' + escapeHtml(file.name) + '".', true);
+    setSongStatus(id, 'Datos extraídos de "' + escapeHtml(file.name) + '". Estilo estimado: ' + (guess ? escapeHtml(guess.estilo) + ' (≈' + guess.bpm + ' BPM)' : '--') + ' — es una estimación automática, verifícala y ajústala si hace falta.', true);
   }catch(err){
     setSongStatus(id, 'No se pudo leer el audio (' + err.message + '). El hash del archivo sí se calculó.', false, true);
   }
   renderSongsList();
   renderPreviews();
   saveLocal();
+}
+
+function getMonoChannel(audioBuffer){
+  const ch0 = audioBuffer.getChannelData(0);
+  if(audioBuffer.numberOfChannels > 1){
+    const ch1 = audioBuffer.getChannelData(1);
+    const mono = new Float32Array(ch0.length);
+    for(let i=0;i<ch0.length;i++) mono[i] = (ch0[i]+ch1[i])/2;
+    return mono;
+  }
+  return ch0;
 }
 
 function dftMagnitudes(samples, numBins){
@@ -338,14 +357,8 @@ function dftMagnitudes(samples, numBins){
   return mags;
 }
 
-async function generateAcousticDNA(audioBuffer){
-  const ch0 = audioBuffer.getChannelData(0);
-  let mono;
-  if(audioBuffer.numberOfChannels > 1){
-    const ch1 = audioBuffer.getChannelData(1);
-    mono = new Float32Array(ch0.length);
-    for(let i=0;i<ch0.length;i++) mono[i] = (ch0[i]+ch1[i])/2;
-  } else { mono = ch0; }
+async function generateAcousticDNA(audioBuffer, monoIn){
+  const mono = monoIn || getMonoChannel(audioBuffer);
 
   const segments = 24, windowSize = 256, bins = 8;
   const segLen = Math.floor(mono.length/segments);
@@ -370,11 +383,93 @@ async function generateAcousticDNA(audioBuffer){
   return formatCode('ADN', bufferToHex(hashBuf));
 }
 
+/* ---- Estimación heurística de tempo (BPM) y estilo a partir del audio ----
+   No es un clasificador de IA: mide tempo por autocorrelación de energía,
+   brillo por tasa de cruces por cero y peso de graves por filtro paso-bajo,
+   y con esas tres señales sugiere un estilo regional mexicano probable.
+   Es un punto de partida editable, no una identificación garantizada. */
+function estimateGenre(mono, sampleRate){
+  const frameSize = 512;
+  const numFrames = Math.floor(mono.length/frameSize);
+  if(numFrames < 40) return null;
+
+  const envelope = new Float32Array(numFrames);
+  for(let i=0;i<numFrames;i++){
+    let sum=0;
+    const start=i*frameSize;
+    for(let j=0;j<frameSize;j++){ const v=mono[start+j]; sum += v*v; }
+    envelope[i] = Math.sqrt(sum/frameSize);
+  }
+  const frameRate = sampleRate/frameSize;
+
+  const onset = new Float32Array(numFrames);
+  for(let i=1;i<numFrames;i++){ const d = envelope[i]-envelope[i-1]; onset[i] = d>0?d:0; }
+
+  const minBpm=55, maxBpm=185;
+  const minLag = Math.max(1, Math.round(frameRate*60/maxBpm));
+  const maxLag = Math.min(numFrames-10, Math.round(frameRate*60/minBpm));
+
+  function bestTempo(slice){
+    let bestLag = minLag, bestScore = -Infinity;
+    for(let lag=minLag; lag<=maxLag && lag<slice.length-5; lag++){
+      let score=0;
+      for(let i=0;i<slice.length-lag;i++) score += slice[i]*slice[i+lag];
+      if(score>bestScore){ bestScore=score; bestLag=lag; }
+    }
+    return bestLag>0 ? frameRate*60/bestLag : 0;
+  }
+
+  let bpm = bestTempo(onset);
+  while(bpm>0 && bpm<70) bpm*=2;
+  while(bpm>190) bpm/=2;
+
+  const half = Math.floor(numFrames/2);
+  const bpm1 = bestTempo(onset.slice(0, half));
+  const bpm2 = bestTempo(onset.slice(half));
+  const tempoShift = (bpm1 && bpm2) ? Math.abs(bpm1-bpm2)/((bpm1+bpm2)/2) : 0;
+
+  const step = Math.max(1, Math.floor(mono.length/200000));
+  let zc=0, n=0, lp=0, lpSumSq=0, rawSumSq=0;
+  const alpha = 0.05;
+  let prevSign = mono[0]>=0;
+  for(let i=step;i<mono.length;i+=step){
+    const v = mono[i];
+    const sign = v>=0;
+    if(sign!==prevSign) zc++;
+    prevSign = sign;
+    lp += alpha*(v-lp);
+    lpSumSq += lp*lp;
+    rawSumSq += v*v;
+    n++;
+  }
+  const zcr = n ? zc/n : 0;
+  const bassRatio = rawSumSq>0 ? (lpSumSq/rawSumSq) : 0;
+
+  let estilo;
+  if(tempoShift > 0.18 && bpm>=95){
+    estilo = 'Corrido Progresivo';
+  } else if(bassRatio > 0.55 && bpm < 95){
+    estilo = 'Corrido Tumbado';
+  } else if(bpm>=88 && bpm<=104 && zcr>0.09){
+    estilo = 'Cumbia Mexicana';
+  } else if(bpm>105 && bpm<=125 && zcr>0.11){
+    estilo = 'Banda Sinaloense';
+  } else if(bpm<90 && zcr<0.08){
+    estilo = 'Sierreño / Corrido con Requinto';
+  } else if(bpm>125){
+    estilo = 'Norteño Movido';
+  } else {
+    estilo = 'Banda / Norteño';
+  }
+  return { estilo, bpm: Math.round(bpm) };
+}
+
+
 /* ================= CANCIONES: CRUD ================= */
 function addSong(){
   const id = state.nextId++;
   state.songs.push({
-    id, title:'', genre:'Regional Mexicano · Banda / Norteño', recomendado:'Redes Sociales / Publicidad / Identidad de Marca',
+    id, title:'', genre:'Regional Mexicano · Banda / Norteño', genreAuto:false, tempoBpm:null, recomendado:'Redes Sociales / Publicidad / Identidad de Marca',
     origen:'Suno AI Pro — Cuenta comercial activa', precio:'', letra:'',
     fileName:'', fileSize:0, duration:null, sampleRate:null, channels:null, hash:'', hashFull:'', dna:''
   });
@@ -397,6 +492,7 @@ function onSongInput(id, field, value){
   const song = state.songs.find(s=>s.id===id);
   if(!song) return;
   song[field] = value;
+  if(field==='genre') song.genreAuto = false;
   renderPreviews();
   saveLocal();
 }
@@ -433,8 +529,9 @@ function renderSongsList(){
           <input type="text" value="${escapeHtml(s.title)}" placeholder="Ej. Fuego y Sabor" class="w-full rounded px-3 py-2 text-sm text-gold-300 font-semibold" oninput="onSongInput(${s.id},'title',this.value)">
         </div>
         <div>
-          <label class="block text-slate-400 text-xs mb-1">Género</label>
+          <label class="block text-slate-400 text-xs mb-1">Género / Estilo</label>
           <input type="text" value="${escapeHtml(s.genre)}" class="w-full rounded px-3 py-2 text-sm text-slate-200" oninput="onSongInput(${s.id},'genre',this.value)">
+          ${s.genreAuto ? `<p class="text-[10px] text-amber-400 italic mt-1"><i class="fa-solid fa-wand-magic-sparkles mr-1"></i>Estimado automáticamente${s.tempoBpm?' (≈'+s.tempoBpm+' BPM)':''} a partir del audio. Verifícalo y edítalo si hace falta.</p>` : ''}
         </div>
         <div>
           <label class="block text-slate-400 text-xs mb-1">Uso recomendado</label>
@@ -521,6 +618,7 @@ function certBlockHTML(s, hiddenClass){
       <p class="text-xs sm:text-sm text-slate-400 uppercase tracking-wider">Se certifica formalmente que la obra musical registrada como:</p>
       <div class="py-3 px-6 bg-slate-900/60 border-y border-gold-500/30">
         <h3 class="font-cinzel text-xl sm:text-3xl font-extrabold text-gold-300 tracking-wide uppercase">${escapeHtml(s.title || 'Título de la obra')}</h3>
+        <p class="text-[11px] sm:text-xs text-slate-400 mt-1.5 tracking-widest uppercase">${escapeHtml(s.genre || '--')}</p>
       </div>
       <p class="text-sm sm:text-base text-slate-300 font-light leading-relaxed">${escapeHtml(g.textoPrincipal)}</p>
       <p class="text-xs sm:text-sm text-slate-400 italic">Esta pieza es irrepetible, inédita y posee una estructura armónica y narrativa diseñada para generar una conexión emocional única e inalterable.</p>
