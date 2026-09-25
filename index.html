@@ -895,6 +895,25 @@ async function generatePdfFromElement(el, filename){
   }
 }
 
+// Espera hasta que el elemento tenga un tamaño real en pantalla (offsetWidth/
+// offsetHeight > 0) antes de capturarlo. Al cambiar de pestaña con showTab(),
+// el navegador puede tardar más de 1-2 frames en terminar el layout, y si
+// html2canvas captura el elemento mientras todavía mide 0x0 (por ejemplo, el
+// watermark SVG usa un ancho en %, calculado sobre un contenedor de 0px)
+// revienta con errores como "createPattern... width or height of 0".
+function waitForLayout(el, maxTries){
+  maxTries = maxTries || 60; // ~1s a 60fps, con margen de sobra
+  return new Promise(resolve=>{
+    let tries = 0;
+    function check(){
+      tries++;
+      if((el.offsetWidth > 0 && el.offsetHeight > 0) || tries >= maxTries){ resolve(); return; }
+      requestAnimationFrame(check);
+    }
+    check();
+  });
+}
+
 async function downloadPDF(){
   if(state.songs.length===0){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
   const activeId = getActiveTabId();
@@ -905,6 +924,7 @@ async function downloadPDF(){
   }
   if(!info.el){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
+  await waitForLayout(info.el);
   await generatePdfFromElement(info.el, info.filename);
 }
 
@@ -912,8 +932,9 @@ async function downloadPDF(){
 // como 3 archivos PDF independientes. Va activando cada pestaña antes de
 // capturarla para garantizar que el contenido esté visible y bien
 // renderizado (html2canvas no captura correctamente elementos dentro de
-// una sección oculta con display:none), y al final regresa a la pestaña
-// en la que estaba el usuario.
+// una sección oculta con display:none, ni mientras el layout de la pestaña
+// recién activada todavía no termina de calcularse), y al final regresa a
+// la pestaña en la que estaba el usuario.
 async function downloadAllPDFs(){
   if(state.songs.length===0){ alert('Agrega al menos una canción antes de descargar los documentos.'); return; }
   const originalTabId = getActiveTabId();
@@ -932,6 +953,7 @@ async function downloadAllPDFs(){
     await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
     const info = getDocInfo(tabId);
     if(info && info.el){
+      await waitForLayout(info.el);
       const ok = await generatePdfFromElement(info.el, info.filename);
       if(ok) okCount++;
       // Pequeña pausa entre descargas para que el navegador no bloquee
