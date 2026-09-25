@@ -43,26 +43,30 @@ body{ background:#090c13; }
   .song-hidden{ display:none !important; }
   body.print-all .song-hidden{ display:block !important; }
 }
-.pdf-mode .doc-page{ background:#ffffff !important; box-shadow:none !important; border-color:#d4af37 !important; }
-.pdf-mode .doc-page, .pdf-mode .doc-page *{ color:#161616 !important; }
-.pdf-mode .doc-page .gold-gradient-text, .pdf-mode .doc-page .text-gold-300, .pdf-mode .doc-page .text-gold-400{ -webkit-text-fill-color:#8a6a08 !important; color:#8a6a08 !important; }
+/* El fondo blanco/negro forzado que había aquí antes era una solución de
+   fuerza bruta: evitaba el choque de html2canvas cubriendo TODO el tema
+   oscuro/dorado, pero por eso el PDF salía plano y el recuadro de
+   "Titular de Derechos" (que tiene su propio fondo oscuro semitransparente,
+   sin cubrir) se veía como un parche gris. Ya identificados los dos
+   elementos realmente frágiles (abajo), se deja que el documento conserve
+   su tema oscuro y dorado normal — igual que se ve en la app — y solo se
+   sustituyen esos dos por un color sólido. */
+.pdf-mode .doc-page{ box-shadow:none !important; border-color:#d4af37 !important; }
 /* El título en h2 usa background-clip:text + gradiente para el efecto dorado.
    html2canvas intenta rasterizar ese gradiente recortado al texto con
    createPattern, y si el texto aún no tiene medidas estables al capturar,
    el canvas interno queda en 0x0 y truena (o, peor, falla en silencio y
-   deja esa zona en blanco). La regla de arriba solo cambiaba el color del
-   texto pero dejaba el recorte activo. Aquí se quita el gradiente y el
-   recorte por completo durante la captura, para que no haya nada que
-   rasterizar y el título se vea como texto sólido normal. */
-.pdf-mode .doc-page .gold-gradient-text{ background:none !important; -webkit-background-clip:initial !important; background-clip:initial !important; }
+   deja esa zona en blanco). Aquí se reemplaza el gradiente por un dorado
+   sólido —se ve prácticamente igual— para que no haya nada que rasterizar. */
+.pdf-mode .doc-page .gold-gradient-text{ background:none !important; -webkit-background-clip:initial !important; background-clip:initial !important; -webkit-text-fill-color:#e6c25a !important; color:#e6c25a !important; }
 /* El Certificado además tiene separadores decorativos de 1px de alto con
    fondo en degradado (utilidades bg-gradient-to-r/bg-gradient-to-l de
    Tailwind, junto al título). Un elemento tan delgado con gradiente es
    justo el tipo de cosa que html2canvas rompe con el mismo error de
    createPattern si el layout no terminó de asentarse al capturar — esto
-   es exclusivo del Certificado, por eso es el único que falla siempre.
+   es exclusivo del Certificado, por eso es el único que fallaba siempre.
    Aquí se reemplaza cualquier fondo en degradado dentro del documento por
-   un color sólido durante la captura, sin importar dónde aparezca. */
+   el mismo dorado sólido del resto del tema, sin importar dónde aparezca. */
 .pdf-mode .doc-page [class*="bg-gradient-to"]{ background-image:none !important; background-color:#d4af37 !important; }
 .gold-border{ border:2px solid; border-image:linear-gradient(135deg,#fce082 0%,#d4af37 50%,#5c4402 100%) 1; }
 .gold-gradient-text{ background:linear-gradient(135deg,#fff3c4 0%,#e6c25a 50%,#aa820a 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
