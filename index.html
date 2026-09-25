@@ -872,13 +872,19 @@ function getDocInfo(tabId){
 async function generatePdfFromElement(el, filename){
   if(!el){ return false; }
   document.body.classList.add('pdf-mode');
-  const opts = { margin:8, filename, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff'}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{mode:['css','legacy']} };
+  // El sello/watermark decorativo es un <svg> con ancho en % y opacidad casi
+  // nula (puramente estético). html2canvas a veces intenta rasterizarlo antes
+  // de que el layout termine de asentarse y su lienzo interno queda en 0x0,
+  // lo que rompe createPattern. Como no aporta nada visible en el PDF, se
+  // excluye directamente de la captura en vez de dejar que falle y reintentar.
+  const opts = { margin:8, filename, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff', ignoreElements: (node) => node.classList && node.classList.contains('watermark')}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{mode:['css','legacy']} };
   try{
     await html2pdf().set(opts).from(el).save();
     return true;
   }catch(err){
-    // Reintento de seguridad: algunos navegadores fallan al convertir elementos
-    // SVG decorativos a imagen; se ocultan temporalmente y se reintenta antes de avisar al usuario.
+    // Reintento de seguridad: por si algún otro SVG decorativo (esquinas, íconos)
+    // causa un fallo similar en algún navegador; se ocultan todos temporalmente
+    // y se reintenta antes de avisar al usuario.
     const decorativeSvgs = el.querySelectorAll('svg');
     try{
       decorativeSvgs.forEach(svg => svg.style.display = 'none');
