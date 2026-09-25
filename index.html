@@ -657,14 +657,17 @@ function renderContrato(){
     ? `El Cesionario se obliga a pagar al Cedente la cantidad de <strong>${escapeHtml(g.monto||'--')}</strong> por concepto de la cesión total y exclusiva de los derechos patrimoniales de ${plural?'las obras detalladas':'la obra detallada'} en el Anexo I. El Cesionario podrá utilizar ${plural?'las obras':'la obra'} libremente para fines de identidad, promoción y publicidad del negocio (incluyendo, entre otros, Facebook, Instagram, TikTok, Reels, sitio web, videos promocionales y publicidad), quedando dicho uso reservado exclusivamente para El Cesionario.`
     : `El Cedente hace constar que la cesión de ${plural?'las obras':'la obra'} se realiza de manera gratuita, a título de cortesía promocional, sin que exista compromiso de compra ni pago alguno por parte de El Cesionario. La presente cesión es de carácter exclusivo: El Cesionario podrá utilizar ${plural?'las obras':'la obra'} libremente para fines de identidad, promoción y publicidad del negocio (incluyendo, entre otros, Facebook, Instagram, TikTok, Reels, sitio web, videos promocionales y publicidad), quedando dicho uso reservado exclusivamente para El Cesionario.`;
 
-  const filasAnexoI = state.songs.map(s => `
-    <tr class="border-t border-slate-800">
-      <td class="py-2 pr-2 text-gold-300 font-semibold">${escapeHtml(s.title||'--')}</td>
-      <td class="py-2 pr-2 text-slate-300">${escapeHtml(s.genre)}</td>
-      <td class="py-2 pr-2 text-slate-300">${escapeHtml(s.recomendado)}</td>
-      <td class="py-2 pr-2 text-slate-300">${escapeHtml(s.origen)}</td>
-      <td class="py-2 text-slate-300">${escapeHtml(s.precio || (isVenta ? '--' : 'Cortesía · $0'))}</td>
-    </tr>`).join('');
+  const filasAnexoI = state.songs.map((s, idx) => `
+    <div class="${idx>0?'mt-4 pt-4 border-t border-slate-800':'mt-2'}">
+      ${n>1 ? `<p class="text-gold-300 font-semibold text-sm mb-1.5">${idx+1}. ${escapeHtml(s.title||'--')}</p>` : ''}
+      <div class="grid gap-y-1.5 text-xs text-slate-300" style="grid-template-columns:112px 1fr;">
+        ${n===1 ? `<span class="text-slate-500 uppercase text-[10px] pt-0.5">Título</span><span class="break-words">${escapeHtml(s.title||'--')}</span>` : ''}
+        <span class="text-slate-500 uppercase text-[10px] pt-0.5">Género</span><span class="break-words">${escapeHtml(s.genre)}</span>
+        <span class="text-slate-500 uppercase text-[10px] pt-0.5">Recomendado</span><span class="break-words">${escapeHtml(s.recomendado)}</span>
+        <span class="text-slate-500 uppercase text-[10px] pt-0.5">Origen</span><span class="break-words">${escapeHtml(s.origen)}</span>
+        <span class="text-slate-500 uppercase text-[10px] pt-0.5">Precio</span><span class="break-words">${escapeHtml(s.precio || (isVenta ? '--' : 'Cortesía · $0'))}</span>
+      </div>
+    </div>`).join('');
 
   const anexoII = state.songs.map(s => `
     <div class="mt-6 pt-4 border-t border-gold-500/20">
@@ -690,10 +693,7 @@ function renderContrato(){
     <hr class="border-gold-500/20">
     <div>
       <h3 class="font-cinzel text-gold-400 font-bold text-sm uppercase mb-2">Anexo I — Especificación de ${n>1?'las Obras':'la Obra'} (Ficha Técnica) · ${n} obra${n>1?'s':''}</h3>
-      <table class="w-full text-xs">
-        <thead><tr class="text-slate-500 text-left uppercase text-[10px]"><th class="pb-1">Título</th><th class="pb-1">Género</th><th class="pb-1">Recomendado</th><th class="pb-1">Origen</th><th class="pb-1">Precio</th></tr></thead>
-        <tbody>${filasAnexoI}</tbody>
-      </table>
+      <div>${filasAnexoI}</div>
       <p class="text-[11px] text-slate-500 italic mt-2">La letra completa de ${n>1?'las obras se incluye':'la obra se incluye'} en el Anexo II del presente instrumento.</p>
     </div>
     <hr class="border-gold-500/20">
@@ -755,11 +755,12 @@ function anexoTecnicoBlockHTML(s, hiddenClass){
     <hr class="border-gold-500/20">
     <div>
       <h3 class="font-cinzel text-gold-400 font-bold text-sm uppercase mb-2">2. Formatos de Entrega</h3>
-      <table class="w-full text-xs">
+      <table class="w-full text-xs table-fixed">
+        <colgroup><col style="width:70px"><col></colgroup>
         <tbody>
-          <tr class="border-t border-slate-800"><td class="py-2 pr-3 text-gold-300 font-semibold align-top">MP3</td><td class="py-2 text-slate-300">${s.duration? '320 kbps · '+ (s.sampleRate||44100) +' Hz · '+ s.channels +' canal(es) · duración '+formatDuration(s.duration)+' · archivo "'+escapeHtml(s.fileName)+'" ('+Math.round((s.fileSize||0)/1024)+' KB)' : '320 kbps · 44.1 kHz — uso digital inmediato: redes sociales, WhatsApp, difusión general y reproducción en dispositivos móviles.'}</td></tr>
-          <tr class="border-t border-slate-800"><td class="py-2 pr-3 text-gold-300 font-semibold align-top">WAV</td><td class="py-2 text-slate-300">24-bit · 44.1 kHz — calidad máxima sin compresión, recomendado para edición, mezcla con video, masterización o uso profesional/broadcast.</td></tr>
-          <tr class="border-t border-slate-800"><td class="py-2 pr-3 text-gold-300 font-semibold align-top">Guía de Uso</td><td class="py-2 text-slate-300">Documento breve con la intención, el mood y los momentos recomendados para el uso promocional de la pieza.</td></tr>
+          <tr class="border-t border-slate-800"><td class="py-2 pr-3 text-gold-300 font-semibold align-top">MP3</td><td class="py-2 text-slate-300 break-words">${s.duration? '320 kbps · '+ (s.sampleRate||44100) +' Hz · '+ s.channels +' canal(es) · duración '+formatDuration(s.duration)+' · archivo "'+escapeHtml(s.fileName)+'" ('+Math.round((s.fileSize||0)/1024)+' KB)' : '320 kbps · 44.1 kHz — uso digital inmediato: redes sociales, WhatsApp, difusión general y reproducción en dispositivos móviles.'}</td></tr>
+          <tr class="border-t border-slate-800"><td class="py-2 pr-3 text-gold-300 font-semibold align-top">WAV</td><td class="py-2 text-slate-300 break-words">24-bit · 44.1 kHz — calidad máxima sin compresión, recomendado para edición, mezcla con video, masterización o uso profesional/broadcast.</td></tr>
+          <tr class="border-t border-slate-800"><td class="py-2 pr-3 text-gold-300 font-semibold align-top">Guía de Uso</td><td class="py-2 text-slate-300 break-words">Documento breve con la intención, el mood y los momentos recomendados para el uso promocional de la pieza.</td></tr>
         </tbody>
       </table>
     </div>
@@ -858,6 +859,7 @@ async function downloadPDF(){
     return;
   }
   if(!el){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
+  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   document.body.classList.add('pdf-mode');
   const opts = { margin:8, filename, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff'}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{mode:['css','legacy']} };
   try{
@@ -908,6 +910,7 @@ function printWordDocument(){
 }
 async function downloadWordPDF(){
   const el = document.getElementById('wordPreview');
+  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   const opts = { margin:10, filename:'documento_convertido.pdf', image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff'}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'} };
   try{ await html2pdf().set(opts).from(el).save(); }
   catch(err){ alert('No se pudo generar el PDF: ' + err.message); }
