@@ -46,7 +46,6 @@ body{ background:#090c13; }
 .pdf-mode .doc-page{ background:#ffffff !important; box-shadow:none !important; border-color:#d4af37 !important; }
 .pdf-mode .doc-page, .pdf-mode .doc-page *{ color:#161616 !important; }
 .pdf-mode .doc-page .gold-gradient-text, .pdf-mode .doc-page .text-gold-300, .pdf-mode .doc-page .text-gold-400{ -webkit-text-fill-color:#8a6a08 !important; color:#8a6a08 !important; }
-.pdf-page-break{ page-break-after:always; break-after:page; }
 .gold-border{ border:2px solid; border-image:linear-gradient(135deg,#fce082 0%,#d4af37 50%,#5c4402 100%) 1; }
 .gold-gradient-text{ background:linear-gradient(135deg,#fff3c4 0%,#e6c25a 50%,#aa820a 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .gold-button{ background:linear-gradient(135deg,#d4af37 0%,#aa820a 100%); transition:all .2s ease; }
@@ -156,7 +155,6 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
     <div id="previewContent" class="pdf-mode flex-1 overflow-y-auto space-y-6 pr-1"></div>
     <div class="pt-4 mt-2 border-t border-slate-800 flex flex-wrap justify-end gap-2">
       <button onclick="haptic(); closePreviewModal(); printAll();" class="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-500/40 text-blue-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-layer-group"></i>Imprimir todo (paquete)</button>
-      <button id="btnDownloadPackage" onclick="haptic(); downloadPackagePDF();" class="bg-gold-800/40 hover:bg-gold-600/40 border border-gold-500/50 text-gold-300 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar PDF (paquete completo)</button>
       <button onclick="haptic(); closePreviewModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs">Cerrar</button>
     </div>
   </div>
@@ -234,23 +232,32 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
 
   <!-- ================= TAB: CERTIFICADO ================= -->
   <section id="tabCert" class="tab-section space-y-4">
-    <div class="no-print flex items-center gap-2">
-      <label class="text-sm text-slate-300">Canción:</label>
-      <select id="certSongSelect" class="rounded px-3 py-2 text-sm text-slate-200" onchange="selectSong('cert', this.value)"></select>
+    <div class="no-print flex flex-wrap items-center gap-2 justify-between">
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-slate-300">Canción:</label>
+        <select id="certSongSelect" class="rounded px-3 py-2 text-sm text-slate-200" onchange="selectSong('cert', this.value)"></select>
+      </div>
+      <button onclick="haptic(); downloadDoc('tabCert');" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar Certificado (PDF)</button>
     </div>
     <div id="certContainer" class="space-y-8"></div>
   </section>
 
   <!-- ================= TAB: CONTRATO ================= -->
   <section id="tabContrato" class="tab-section">
+    <div class="no-print flex justify-end mb-2">
+      <button onclick="haptic(); downloadDoc('tabContrato');" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar Contrato (PDF)</button>
+    </div>
     <div id="contratoContainer"></div>
   </section>
 
   <!-- ================= TAB: ANEXO TÉCNICO ================= -->
   <section id="tabAnexo" class="tab-section space-y-4">
-    <div class="no-print flex items-center gap-2">
-      <label class="text-sm text-slate-300">Canción:</label>
-      <select id="anexoSongSelect" class="rounded px-3 py-2 text-sm text-slate-200" onchange="selectSong('anexo', this.value)"></select>
+    <div class="no-print flex flex-wrap items-center gap-2 justify-between">
+      <div class="flex items-center gap-2">
+        <label class="text-sm text-slate-300">Canción:</label>
+        <select id="anexoSongSelect" class="rounded px-3 py-2 text-sm text-slate-200" onchange="selectSong('anexo', this.value)"></select>
+      </div>
+      <button onclick="haptic(); downloadDoc('tabAnexo');" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar Ficha Técnica (PDF)</button>
     </div>
     <div id="anexoContainer" class="space-y-8"></div>
   </section>
@@ -921,70 +928,22 @@ function waitForLayout(el, maxTries){
   });
 }
 
-async function downloadPDF(){
+async function downloadDoc(tabId){
   if(state.songs.length===0){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
-  const activeId = getActiveTabId();
-  const info = getDocInfo(activeId);
-  if(!info){
-    alert('Ve a la pestaña Certificado, Contrato o Anexo Técnico para descargar su PDF.');
-    return;
-  }
-  if(!info.el){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
+  const info = getDocInfo(tabId);
+  if(!info || !info.el){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
   if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
   await waitForLayout(info.el);
   await generatePdfFromElement(info.el, info.filename);
 }
 
-// Descarga el paquete completo (Certificado + Contrato con sus Anexos +
-// Ficha Técnica) como UN SOLO PDF con salto de página entre cada documento.
-// Reutiliza exactamente los mismos elementos que arma "Vista previa (3 docs)"
-// (clonados, ya renderizados, sin depender de cambiar de pestaña ni de
-// esperar a que el layout de una pestaña recién activada se asiente), por
-// eso el resultado sale con el mismo formato correcto que ya funciona en
-// "Imprimir todo (paquete)".
-async function downloadPackagePDF(){
-  if(state.songs.length===0){ alert('Agrega al menos una canción antes de descargar el paquete.'); return; }
-  const certEl = document.querySelector('#certContainer .song-block:not(.song-hidden)');
-  const contratoEl = document.getElementById('contratoContainer');
-  const anexoEl = document.querySelector('#anexoContainer .song-block:not(.song-hidden)');
-  if(!certEl || !contratoEl || !anexoEl){ alert('No hay contenido suficiente para generar el paquete. Agrega una canción primero.'); return; }
-
-  const btn = document.getElementById('btnDownloadPackage');
-  if(btn){ btn.disabled = true; btn.classList.add('opacity-60'); }
-  if(document.fonts && document.fonts.ready){ try{ await document.fonts.ready; }catch(e){} }
-
-  // Contenedor temporal, fuera de pantalla pero con layout real (no
-  // display:none), con los 3 documentos clonados en orden y un salto de
-  // página después de cada uno menos el último.
-  const wrap = document.createElement('div');
-  wrap.style.position = 'fixed';
-  wrap.style.top = '0';
-  wrap.style.left = '-99999px';
-  wrap.style.width = (certEl.offsetWidth || contratoEl.offsetWidth || 800) + 'px';
-  const sources = [certEl, contratoEl, anexoEl];
-  sources.forEach((src, i) => {
-    const clone = src.cloneNode(true);
-    clone.classList.remove('song-hidden');
-    clone.style.display = 'block';
-    if(i < sources.length - 1) clone.classList.add('pdf-page-break');
-    wrap.appendChild(clone);
-  });
-  document.body.appendChild(wrap);
-  document.body.classList.add('pdf-mode');
-  await waitForLayout(wrap);
-
-  const g = state.general;
-  const filename = 'EAMR_Paquete_' + slugify(g.cesionarioNombre) + '_' + slugify(g.folio) + '.pdf';
-  const opts = { margin:8, filename, image:{type:'jpeg',quality:0.95}, html2canvas:{scale:2, backgroundColor:'#ffffff', ignoreElements:(node)=>node.classList && node.classList.contains('watermark')}, jsPDF:{unit:'mm',format:'letter',orientation:'portrait'}, pagebreak:{mode:['css','legacy']} };
-  try{
-    await html2pdf().set(opts).from(wrap).save();
-  }catch(err){
-    alert('No se pudo generar el PDF del paquete (' + err.message + '). Puedes usar "Imprimir todo (paquete)" y elegir Guardar como PDF.');
-  }finally{
-    document.body.classList.remove('pdf-mode');
-    wrap.remove();
-    if(btn){ btn.disabled = false; btn.classList.remove('opacity-60'); }
+async function downloadPDF(){
+  const activeId = getActiveTabId();
+  if(!getDocInfo(activeId)){
+    alert('Ve a la pestaña Certificado, Contrato o Anexo Técnico para descargar su PDF.');
+    return;
   }
+  await downloadDoc(activeId);
 }
 
 /* ================= CONVERSOR WORD A PDF ================= */
