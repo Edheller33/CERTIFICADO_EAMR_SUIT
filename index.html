@@ -26,48 +26,76 @@ tailwind.config = { theme: { extend: {
 }}};
 </script>
 <style>
-:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+:root{ box-sizing:border-box; padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+  --doc-ink:#1c1c1c; --doc-gold:#8a6d1f; --doc-border:#c9a227; --doc-tint:#faf3df; --doc-tint-border:#e3d9b8; --doc-line:#d8d3c4; }
 html{ scroll-padding-top:env(safe-area-inset-top,0px); }
 body{ background:#090c13; }
+
+/* ======================================================================
+   TEMA DE EXPORTACIÓN (impresión, PDF y vista previa "pdf-mode")
+   ----------------------------------------------------------------------
+   La app en pantalla conserva su tema oscuro/dorado normal. Pero todo lo
+   que sale de la app -- imprimir, "Descargar PDF" (html2canvas) y la
+   "Vista previa" del paquete -- debe verse como un documento profesional:
+   fondo blanco, texto en tinta oscura y el dorado reservado solo para
+   títulos, etiquetas y líneas divisorias, igual en los 3 casos.
+   Las mismas reglas se repiten una vez por selector (.doc-page dentro de
+   @media print, y .pdf-mode .doc-page para el resto) porque son dos
+   disparadores distintos -- Ctrl+P no pasa por JS y por lo tanto nunca
+   tendrá la clase .pdf-mode -- pero comparten los valores de :root de
+   arriba para que ambos queden siempre sincronizados. */
 @media print{
-  body{ background:#fff !important; color:#000 !important; }
+  body{ background:#fff !important; color:var(--doc-ink) !important; }
   .no-print{ display:none !important; }
   .doc-page{ box-shadow:none !important; margin:0 auto !important; width:100% !important; max-width:100% !important;
-    page-break-after:always; border:none !important; background:#fff !important; color:#111 !important; }
-  .doc-page *{ color:#111 !important; }
-  .doc-page .gold-gradient-text{ -webkit-text-fill-color:#7a5c05 !important; color:#7a5c05 !important; }
-  .doc-page .gold-accent{ color:#7a5c05 !important; }
+    page-break-after:always; background:#fff !important; color:var(--doc-ink) !important; border-color:var(--doc-border) !important; }
+  .doc-page *{ color:var(--doc-ink) !important; text-shadow:none !important; }
+  .doc-page .gold-gradient-text, .doc-page .gold-accent{ background:none !important; -webkit-background-clip:initial !important; background-clip:initial !important; -webkit-text-fill-color:var(--doc-gold) !important; color:var(--doc-gold) !important; }
+  .doc-page [class*="text-gold-"]{ color:var(--doc-gold) !important; }
+  .doc-page [class*="border-gold-"]{ border-color:var(--doc-border) !important; }
+  .doc-page [class*="bg-gold-"]{ background-color:var(--doc-tint) !important; }
+  .doc-page [class*="bg-slate-900"]{ background-color:var(--doc-tint) !important; border-color:var(--doc-tint-border) !important; }
+  .doc-page [class*="border-slate"]{ border-color:var(--doc-line) !important; }
+  .doc-page [class*="shadow-"]{ box-shadow:none !important; }
+  .doc-page [class*="bg-gradient-to"]{ background-image:none !important; background-color:var(--doc-border) !important; }
+  .doc-page .corner-deco{ border-color:var(--doc-border) !important; }
+  .doc-page .watermark{ opacity:.04 !important; }
   .tab-section{ display:none !important; }
   .tab-section.active{ display:block !important; }
   body.print-all .tab-section{ display:block !important; }
   .song-hidden{ display:none !important; }
   body.print-all .song-hidden{ display:block !important; }
 }
-/* El fondo blanco/negro forzado que había aquí antes era una solución de
-   fuerza bruta: evitaba el choque de html2canvas cubriendo TODO el tema
-   oscuro/dorado, pero por eso el PDF salía plano y el recuadro de
-   "Titular de Derechos" (que tiene su propio fondo oscuro semitransparente,
-   sin cubrir) se veía como un parche gris. Ya identificados los dos
-   elementos realmente frágiles (abajo), se deja que el documento conserve
-   su tema oscuro y dorado normal — igual que se ve en la app — y solo se
-   sustituyen esos dos por un color sólido. */
-.pdf-mode .doc-page{ box-shadow:none !important; border-color:#d4af37 !important; }
+.pdf-mode .doc-page{ box-shadow:none !important; background:#fff !important; color:var(--doc-ink) !important; border-color:var(--doc-border) !important; }
+.pdf-mode .doc-page *{ color:var(--doc-ink) !important; text-shadow:none !important; }
 /* El título en h2 usa background-clip:text + gradiente para el efecto dorado.
    html2canvas intenta rasterizar ese gradiente recortado al texto con
    createPattern, y si el texto aún no tiene medidas estables al capturar,
    el canvas interno queda en 0x0 y truena (o, peor, falla en silencio y
    deja esa zona en blanco). Aquí se reemplaza el gradiente por un dorado
-   sólido —se ve prácticamente igual— para que no haya nada que rasterizar. */
-.pdf-mode .doc-page .gold-gradient-text{ background:none !important; -webkit-background-clip:initial !important; background-clip:initial !important; -webkit-text-fill-color:#e6c25a !important; color:#e6c25a !important; }
+   sólido -- ahora el dorado "profesional" de exportación, no el de pantalla --
+   para que no haya nada que rasterizar. */
+.pdf-mode .doc-page .gold-gradient-text, .pdf-mode .doc-page .gold-accent{ background:none !important; -webkit-background-clip:initial !important; background-clip:initial !important; -webkit-text-fill-color:var(--doc-gold) !important; color:var(--doc-gold) !important; }
+.pdf-mode .doc-page [class*="text-gold-"]{ color:var(--doc-gold) !important; }
+.pdf-mode .doc-page [class*="border-gold-"]{ border-color:var(--doc-border) !important; }
+.pdf-mode .doc-page [class*="bg-gold-"]{ background-color:var(--doc-tint) !important; }
+/* Los recuadros de datos (p.ej. "Titular de Derechos") usan fondos oscuros
+   semitransparentes (bg-slate-900/60, /80) pensados para el tema de pantalla;
+   en el tema de exportación se convierten en un panel claro con borde suave. */
+.pdf-mode .doc-page [class*="bg-slate-900"]{ background-color:var(--doc-tint) !important; border-color:var(--doc-tint-border) !important; }
+.pdf-mode .doc-page [class*="border-slate"]{ border-color:var(--doc-line) !important; }
+.pdf-mode .doc-page [class*="shadow-"]{ box-shadow:none !important; }
 /* El Certificado además tiene separadores decorativos de 1px de alto con
    fondo en degradado (utilidades bg-gradient-to-r/bg-gradient-to-l de
    Tailwind, junto al título). Un elemento tan delgado con gradiente es
    justo el tipo de cosa que html2canvas rompe con el mismo error de
-   createPattern si el layout no terminó de asentarse al capturar — esto
+   createPattern si el layout no terminó de asentarse al capturar -- esto
    es exclusivo del Certificado, por eso es el único que fallaba siempre.
    Aquí se reemplaza cualquier fondo en degradado dentro del documento por
-   el mismo dorado sólido del resto del tema, sin importar dónde aparezca. */
-.pdf-mode .doc-page [class*="bg-gradient-to"]{ background-image:none !important; background-color:#d4af37 !important; }
+   el mismo dorado sólido del tema de exportación, sin importar dónde aparezca. */
+.pdf-mode .doc-page [class*="bg-gradient-to"]{ background-image:none !important; background-color:var(--doc-border) !important; }
+.pdf-mode .doc-page .corner-deco{ border-color:var(--doc-border) !important; }
+.pdf-mode .doc-page .watermark{ opacity:.04 !important; }
 .gold-border{ border:2px solid; border-image:linear-gradient(135deg,#fce082 0%,#d4af37 50%,#5c4402 100%) 1; }
 .gold-gradient-text{ background:linear-gradient(135deg,#fff3c4 0%,#e6c25a 50%,#aa820a 100%); -webkit-background-clip:text; -webkit-text-fill-color:transparent; }
 .gold-button{ background:linear-gradient(135deg,#d4af37 0%,#aa820a 100%); transition:all .2s ease; }
@@ -120,6 +148,7 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
       <button onclick="haptic(); printCurrent();" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-print"></i>Imprimir vista actual</button>
       <button onclick="haptic(); printAll();" class="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-500/40 text-blue-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-layer-group"></i>Imprimir todo (paquete)</button>
       <button onclick="haptic(); openPreviewModal();" class="bg-cyan-900/40 hover:bg-cyan-800/60 border border-cyan-500/40 text-cyan-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-eye"></i>Vista previa (3 docs)</button>
+      <button onclick="haptic(); downloadWordPackage();" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Paquete completo (Word)</button>
       <button onclick="haptic(); toggleWordModal();" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Word a PDF</button>
       <button onclick="haptic(); exportJSON();" class="bg-emerald-900/40 hover:bg-emerald-800/60 border border-emerald-500/40 text-emerald-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-floppy-disk"></i>Guardar proyecto</button>
       <button onclick="document.getElementById('loadJsonInput').click()" class="bg-slate-800 hover:bg-slate-700 border border-slate-600 text-slate-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-folder-open"></i>Cargar proyecto</button>
@@ -177,6 +206,7 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
     <div id="previewContent" class="pdf-mode flex-1 overflow-y-auto space-y-6 pr-1"></div>
     <div class="pt-4 mt-2 border-t border-slate-800 flex flex-wrap justify-end gap-2">
       <button onclick="haptic(); closePreviewModal(); printAll();" class="bg-blue-900/40 hover:bg-blue-800/60 border border-blue-500/40 text-blue-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-layer-group"></i>Imprimir todo (paquete)</button>
+      <button onclick="haptic(); downloadWordPackage();" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Descargar paquete (Word)</button>
       <button onclick="haptic(); closePreviewModal()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded text-slate-300 text-xs">Cerrar</button>
     </div>
   </div>
@@ -260,14 +290,16 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
         <select id="certSongSelect" class="rounded px-3 py-2 text-sm text-slate-200" onchange="selectSong('cert', this.value)"></select>
       </div>
       <button onclick="haptic(); downloadDoc('tabCert');" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar Certificado (PDF)</button>
+      <button onclick="haptic(); downloadWord('tabCert');" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Descargar Certificado (Word)</button>
     </div>
     <div id="certContainer" class="space-y-8"></div>
   </section>
 
   <!-- ================= TAB: CONTRATO ================= -->
   <section id="tabContrato" class="tab-section">
-    <div class="no-print flex justify-end mb-2">
+    <div class="no-print flex flex-wrap justify-end gap-2 mb-2">
       <button onclick="haptic(); downloadDoc('tabContrato');" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar Contrato (PDF)</button>
+      <button onclick="haptic(); downloadWord('tabContrato');" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Descargar Contrato (Word)</button>
     </div>
     <div id="contratoContainer"></div>
   </section>
@@ -280,6 +312,7 @@ input:focus, textarea:focus, select:focus{ outline:none; border-color:#d4af37; }
         <select id="anexoSongSelect" class="rounded px-3 py-2 text-sm text-slate-200" onchange="selectSong('anexo', this.value)"></select>
       </div>
       <button onclick="haptic(); downloadDoc('tabAnexo');" class="gold-button text-slate-950 font-bold px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-pdf"></i>Descargar Ficha Técnica (PDF)</button>
+      <button onclick="haptic(); downloadWord('tabAnexo');" class="bg-purple-900/40 hover:bg-purple-800/60 border border-purple-500/40 text-purple-200 px-3 py-1.5 rounded-md text-xs flex items-center gap-1.5"><i class="fa-solid fa-file-word"></i>Descargar Ficha Técnica (Word)</button>
     </div>
     <div id="anexoContainer" class="space-y-8"></div>
   </section>
@@ -672,10 +705,12 @@ function renderCertificados(){
 }
 
 /* ================= RENDER: CONTRATO ================= */
-function renderContrato(){
+// Prepara los textos/derivados del contrato (subtítulo, cláusulas según tipo
+// de cesión, etc.) a partir de state.general. Se extrajo de renderContrato()
+// para que la misma lógica de negocio la reutilice también el exportador a
+// Word (contratoWordBody), en vez de duplicar estas reglas en dos lugares.
+function buildContratoData(){
   const g = state.general;
-  const cont = document.getElementById('contratoContainer');
-  if(state.songs.length===0){ cont.innerHTML = '<p class="text-sm text-slate-500 italic text-center py-10">Agrega al menos una canción para generar el contrato.</p>'; return; }
   const n = state.songs.length;
   const plural = n>1;
   const isVenta = g.tipoCesion === 'venta';
@@ -687,7 +722,12 @@ function renderContrato(){
   const clausulaTexto = isVenta
     ? `El Cesionario se obliga a pagar al Cedente la cantidad de <strong>${escapeHtml(g.monto||'--')}</strong> por concepto de la cesión total y exclusiva de los derechos patrimoniales de ${plural?'las obras detalladas':'la obra detallada'} en el Anexo I. El Cesionario podrá utilizar ${plural?'las obras':'la obra'} libremente para fines de identidad, promoción y publicidad del negocio (incluyendo, entre otros, Facebook, Instagram, TikTok, Reels, sitio web, videos promocionales y publicidad), quedando dicho uso reservado exclusivamente para El Cesionario.`
     : `El Cedente hace constar que la cesión de ${plural?'las obras':'la obra'} se realiza de manera gratuita, a título de cortesía promocional, sin que exista compromiso de compra ni pago alguno por parte de El Cesionario. La presente cesión es de carácter exclusivo: El Cesionario podrá utilizar ${plural?'las obras':'la obra'} libremente para fines de identidad, promoción y publicidad del negocio (incluyendo, entre otros, Facebook, Instagram, TikTok, Reels, sitio web, videos promocionales y publicidad), quedando dicho uso reservado exclusivamente para El Cesionario.`;
-
+  return { g, n, plural, isVenta, subtitulo, introTxt, clausulaTitulo, clausulaTexto };
+}
+function renderContrato(){
+  const cont = document.getElementById('contratoContainer');
+  if(state.songs.length===0){ cont.innerHTML = '<p class="text-sm text-slate-500 italic text-center py-10">Agrega al menos una canción para generar el contrato.</p>'; return; }
+  const { g, n, isVenta, subtitulo, introTxt, clausulaTitulo, clausulaTexto } = buildContratoData();
   const filasAnexoI = state.songs.map((s, idx) => `
     <div class="${idx>0?'mt-4 pt-4 border-t border-slate-800':'mt-2'}">
       ${n>1 ? `<p class="text-gold-300 font-semibold text-sm mb-1.5">${idx+1}. ${escapeHtml(s.title||'--')}</p>` : ''}
@@ -819,6 +859,203 @@ function renderPreviews(){
   renderCertificados();
   renderContrato();
   renderAnexoTecnico();
+}
+
+/* ================= EXPORTAR A WORD (.doc) =================
+   Los botones "Descargar PDF" capturan el HTML/Tailwind que se ve en
+   pantalla (vía html2canvas), lo cual produce una imagen -- Word no puede
+   editar texto dentro de una imagen. Para que el archivo se abra en Word
+   como un documento real (texto, no imagen) se generan aquí plantillas
+   propias, independientes de Tailwind, con estilos en un <style> inline:
+   Word ignora las hojas de estilo externas (Tailwind CDN, Google Fonts)
+   pero sí interpreta un <style> embebido en el propio archivo.
+   El archivo se guarda con extensión .doc y tipo MIME "application/msword"
+   sobre contenido HTML: es el método estándar y ampliamente compatible
+   para que Word (incluida la versión gratuita/Word Online) lo abra
+   directamente como documento editable con fondo blanco y texto negro.
+   Word puede advertir que "el formato no coincide con la extensión": es
+   normal con este método, basta con elegir Abrir/Aceptar. */
+const WORD_STYLE = `
+  @page Section1{ size:8.5in 11in; margin:1in; }
+  div.Section1{ page:Section1; }
+  body{ font-family:Georgia,'Times New Roman',serif; color:#1c1c1c; font-size:11pt; line-height:1.5; }
+  .doc-block{ page-break-after:always; }
+  .doc-block:last-child{ page-break-after:avoid; }
+  h1{ font-family:Georgia,serif; color:#8a6d1f; text-transform:uppercase; letter-spacing:1px; font-size:20pt; text-align:center; margin:0 0 4pt; }
+  h2{ color:#8a6d1f; font-size:12pt; text-transform:uppercase; letter-spacing:.5px; border-bottom:1pt solid #c9a227; padding-bottom:2pt; margin:16pt 0 6pt; }
+  .subtitle{ text-align:center; color:#8a6d1f; font-weight:bold; font-size:11pt; margin:2pt 0; }
+  .muted{ color:#666666; font-size:9pt; }
+  .center{ text-align:center; }
+  .gold{ color:#8a6d1f; font-weight:bold; }
+  .badge{ display:inline-block; border:1pt solid #c9a227; padding:3pt 10pt; font-size:9pt; letter-spacing:2px; color:#8a6d1f; margin:6pt 0; }
+  .box{ border:1pt solid #c9a227; background:#fbf7ea; }
+  table{ border-collapse:collapse; width:100%; margin:6pt 0; }
+  td, th{ padding:5pt 8pt; font-size:10pt; vertical-align:top; }
+  hr{ border:none; border-top:1pt solid #c9a227; margin:14pt 0; }
+  .sig{ width:50%; text-align:center; }
+  .sig .line{ border-top:1pt solid #999999; margin-top:34pt; padding-top:4pt; }
+  .lyrics{ font-family:'Courier New',monospace; font-size:9.5pt; white-space:pre-line; }
+`;
+function wordDocument(title, bodyHtml){
+  return '<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40">'
+    + '<head><meta charset="utf-8"><title>' + escapeHtml(title) + '</title>'
+    + '<!--[if gte mso 9]><xml><w:WordDocument><w:View>Print</w:View><w:DoNotOptimizeForBrowser/></w:WordDocument></xml><![endif]-->'
+    + '<style>' + WORD_STYLE + '</style></head><body><div class="Section1">' + bodyHtml + '</div></body></html>';
+}
+function downloadWordBlob(html, filename){
+  const blob = new Blob(['\ufeff', html], { type:'application/msword' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+
+function certWordBody(s){
+  const g = state.general;
+  return `
+  <div class="doc-block">
+    <p class="muted center">— EAMR · Sonic Unicorn Lab —</p>
+    <h1>Certificado de Autenticidad</h1>
+    <p class="center"><span class="badge">${escapeHtml(g.edicion)}</span></p>
+    <p class="center muted" style="text-transform:uppercase;">Se certifica formalmente que la obra musical registrada como:</p>
+    <p class="center" style="font-size:15pt;font-weight:bold;">${escapeHtml(s.title||'Título de la obra')}</p>
+    <p class="center muted" style="text-transform:uppercase;">${escapeHtml(s.genre||'--')}</p>
+    <p>${escapeHtml(g.textoPrincipal)}</p>
+    <p style="font-style:italic;">Esta pieza es irrepetible, inédita y posee una estructura armónica y narrativa diseñada para generar una conexión emocional única e inalterable.</p>
+    <table class="box"><tr>
+      <td><span class="muted">Titular de Derechos:</span><br><b>${escapeHtml(g.cedenteNombre)}</b></td>
+      <td><span class="muted">Fecha de Emisión:</span><br>${escapeHtml(g.fecha||'--')}</td>
+    </tr><tr>
+      <td><span class="muted">Código de Registro (Hash):</span><br>${s.hash||'--'}</td>
+      <td><span class="muted">Huella Acústica (ADN):</span><br>${s.dna||'--'}</td>
+    </tr></table>
+    <p class="center muted">EAMR · Sonic Unicorn Lab · ${escapeHtml(g.cedenteCiudad)} · Folio: ${escapeHtml(g.folio||'--')}</p>
+  </div>`;
+}
+
+function contratoWordBody(){
+  const { g, n, isVenta, subtitulo, introTxt, clausulaTitulo, clausulaTexto } = buildContratoData();
+  const filasAnexoI = state.songs.map((s, idx) => `
+    <tr><td colspan="2" style="${idx>0?'border-top:1pt solid #ddd;':''}">
+      ${n>1 ? '<b class="gold">'+(idx+1)+'. '+escapeHtml(s.title||'--')+'</b><br>' : ''}
+      ${n===1 ? '<b>Título:</b> '+escapeHtml(s.title||'--')+'<br>' : ''}
+      <b>Género:</b> ${escapeHtml(s.genre)}<br>
+      <b>Recomendado:</b> ${escapeHtml(s.recomendado)}<br>
+      <b>Origen:</b> ${escapeHtml(s.origen)}<br>
+      <b>Precio:</b> ${escapeHtml(s.precio || (isVenta ? '--' : 'Cortesía · $0'))}
+    </td></tr>`).join('');
+  const anexoII = state.songs.map(s => `
+    <h2>Letra de la obra "${escapeHtml(s.title||'--')}"</h2>
+    <div class="lyrics">${s.letra ? nl2br(s.letra) : '<i>(Sin letra capturada)</i>'}</div>`).join('');
+
+  return `
+  <div class="doc-block">
+    <p class="muted center">◆ Instrumento Legal · EAMR ◆</p>
+    <h1 style="font-size:16pt;">Contrato de Cesión de Derechos Patrimoniales</h1>
+    <p class="subtitle">${subtitulo}</p>
+    <p class="center muted">Folio: ${escapeHtml(g.folio||'--')} · ${escapeHtml(g.cedenteCiudad)}</p>
+    <hr>
+    <h2>Partes</h2>
+    <p><span class="gold">EL CEDENTE:</span> ${escapeHtml(g.cedenteNombre)} — ${escapeHtml(g.cedenteDesc)}, con residencia en ${escapeHtml(g.cedenteCiudad)}.</p>
+    <p><span class="gold">EL CESIONARIO:</span> ${escapeHtml(g.cesionarioNombre||'--')} — ${escapeHtml(g.cesionarioTipo)}, en lo sucesivo identificado en este instrumento como "El Cesionario".</p>
+    <p>${introTxt}</p>
+    <hr>
+    <h2>Anexo I — Especificación de ${n>1?'las Obras':'la Obra'} (Ficha Técnica) · ${n} obra${n>1?'s':''}</h2>
+    <table>${filasAnexoI}</table>
+    <p class="muted" style="font-style:italic;">La letra completa de ${n>1?'las obras se incluye':'la obra se incluye'} en el Anexo II del presente instrumento.</p>
+    <hr>
+    <h2>${clausulaTitulo}</h2>
+    <p>${clausulaTexto}</p>
+    <h2>Cláusula de Garantía</h2>
+    <p>El Cedente garantiza que ${n>1?'las obras descritas':'la obra descrita'} en el Anexo I ${n>1?'han':'ha'} sido generada${n>1?'s':''} bajo una cuenta de pago activa y vigente de Suno AI, otorgando los derechos comerciales necesarios para su explotación legal según los términos de dicha plataforma a la fecha de la cesión.</p>
+    <hr>
+    <table><tr>
+      <td class="sig"><span class="gold">EL CEDENTE (EAMR)</span><div class="line">${escapeHtml(g.cedenteNombre)}<br><span class="muted">${escapeHtml(g.fecha||'--')}</span></div></td>
+      <td class="sig"><span class="gold">EL CESIONARIO</span><div class="line">${escapeHtml(g.cesionarioNombre||'--')}<br><span class="muted">Firma y Fecha</span></div></td>
+    </tr></table>
+    <p class="muted center" style="font-style:italic;margin-top:14pt;">El presente instrumento se rige por las disposiciones de los Estados Unidos Mexicanos, en particular por la Ley Federal del Derecho de Autor y la legislación civil aplicable en el estado de Jalisco.</p>
+  </div>
+  <div class="doc-block">
+    <p class="muted center">◆ Instrumento Legal · EAMR ◆</p>
+    <h1 style="font-size:14pt;">Anexo II — Letra${n>1?'s':''} de ${n>1?'las Obras':'la Obra'}</h1>
+    <p class="center muted">Forma parte integral del Contrato de Cesión de Derechos Patrimoniales, Folio ${escapeHtml(g.folio||'--')}.</p>
+    ${anexoII}
+  </div>`;
+}
+
+function anexoWordBody(s){
+  const g = state.general;
+  const estado = g.tipoCesion==='venta' ? 'Cesión Onerosa Activa' : 'Cortesía Promocional Activa';
+  const cesionLabel = g.tipoCesion==='venta' ? 'Cesión Onerosa' : 'Cesión de Cortesía';
+  return `
+  <div class="doc-block">
+    <p class="muted center">◆ EAMR · Sonic Unicorn Lab ◆</p>
+    <h1 style="font-size:16pt;">Ficha de Entrega y Especificaciones Técnicas</h1>
+    <p class="center">Anexo Técnico · Obra "${escapeHtml(s.title||'--')}" — ${cesionLabel}</p>
+    <p class="center muted">Folio: ${escapeHtml(g.folio||'--')}-A · ${escapeHtml(g.cedenteCiudad)}</p>
+    <p class="center muted">Fecha: ${escapeHtml(g.fecha||'--')} · Estado: ${estado}</p>
+    <hr>
+    <h2>1. Datos de la Obra</h2>
+    <table>
+      <tr><td class="muted" style="width:35%;">Título:</td><td>${escapeHtml(s.title||'--')}</td></tr>
+      <tr><td class="muted">Cedente:</td><td>${escapeHtml(g.cedenteNombre)}</td></tr>
+      <tr><td class="muted">Cesionario:</td><td>${escapeHtml(g.cesionarioNombre||'--')}</td></tr>
+      <tr><td class="muted">Estado:</td><td>${estado}</td></tr>
+      <tr><td class="muted">Código de Registro (Hash):</td><td>${s.hash||'--'}</td></tr>
+      <tr><td class="muted">Huella Acústica (ADN):</td><td>${s.dna||'--'}</td></tr>
+    </table>
+    <hr>
+    <h2>2. Formatos de Entrega</h2>
+    <table>
+      <tr><td class="gold" style="width:20%;">MP3</td><td>${s.duration ? '320 kbps · '+(s.sampleRate||44100)+' Hz · '+s.channels+' canal(es) · duración '+formatDuration(s.duration)+' · archivo "'+escapeHtml(s.fileName)+'" ('+Math.round((s.fileSize||0)/1024)+' KB)' : '320 kbps · 44.1 kHz — uso digital inmediato: redes sociales, WhatsApp, difusión general y reproducción en dispositivos móviles.'}</td></tr>
+      <tr><td class="gold">WAV</td><td>24-bit · 44.1 kHz — calidad máxima sin compresión, recomendado para edición, mezcla con video, masterización o uso profesional/broadcast.</td></tr>
+      <tr><td class="gold">Guía de Uso</td><td>Documento breve con la intención, el mood y los momentos recomendados para el uso promocional de la pieza.</td></tr>
+    </table>
+    <hr>
+    <h2>3. Derechos Cedidos</h2>
+    <p><span class="gold">◆ Derecho de Adaptación:</span> El Cesionario podrá ajustar duración, mezcla o arreglos de "${escapeHtml(s.title||'--')}" para adecuarla a distintos formatos publicitarios (spots cortos, jingles, reels, historias, etc.), de forma exclusiva.</p>
+    <p><span class="gold">◆ Derecho de Explotación:</span> Uso libre en redes sociales, sitio web, videos promocionales y publicidad del negocio, sin límite de tiempo ni de número de publicaciones.</p>
+    <p><span class="gold">◆ Garantía de Origen:</span> El Cedente certifica que la obra fue generada bajo suscripción Suno AI Pro activa al momento de su creación, lo que otorga los derechos comerciales necesarios según los términos de dicha plataforma.</p>
+    <hr>
+    <table><tr>
+      <td class="sig"><span class="gold">EL CEDENTE (EAMR)</span><div class="line">${escapeHtml(g.cedenteNombre)}</div></td>
+      <td class="sig"><span class="gold">EL CESIONARIO</span><div class="line">${escapeHtml(g.cesionarioNombre||'--')}</div></td>
+    </tr></table>
+  </div>`;
+}
+
+function downloadWord(tabId){
+  if(state.songs.length===0){ alert('No hay contenido para exportar todavía. Agrega una canción primero.'); return; }
+  const g = state.general;
+  let title, body, filename;
+  if(tabId==='tabCert'){
+    const s = state.songs.find(sg=>sg.id===state.selectedCert) || state.songs[0];
+    if(!s) return;
+    title = 'Certificado — ' + (s.title||'Obra');
+    body = certWordBody(s);
+    filename = 'Certificado_' + slugify(s.title) + '.doc';
+  }else if(tabId==='tabContrato'){
+    title = 'Contrato de Cesión — ' + (g.cesionarioNombre||'Cliente');
+    body = contratoWordBody();
+    filename = 'Contrato_' + slugify(g.cesionarioNombre) + '_' + slugify(g.folio) + '.doc';
+  }else if(tabId==='tabAnexo'){
+    const s = state.songs.find(sg=>sg.id===state.selectedAnexo) || state.songs[0];
+    if(!s) return;
+    title = 'Ficha Técnica — ' + (s.title||'Obra');
+    body = anexoWordBody(s);
+    filename = 'Anexo_Tecnico_' + slugify(s.title) + '.doc';
+  }else return;
+  downloadWordBlob(wordDocument(title, body), filename);
+}
+
+function downloadWordPackage(){
+  if(state.songs.length===0){ alert('Agrega al menos una canción antes de generar el paquete.'); return; }
+  const g = state.general;
+  const certS = state.songs.find(sg=>sg.id===state.selectedCert) || state.songs[0];
+  const anexoS = state.songs.find(sg=>sg.id===state.selectedAnexo) || state.songs[0];
+  const body = certWordBody(certS) + contratoWordBody() + anexoWordBody(anexoS);
+  downloadWordBlob(wordDocument('Paquete EAMR — ' + (g.cesionarioNombre||'Cliente'), body), 'Paquete_EAMR_' + slugify(g.cesionarioNombre) + '_' + slugify(g.folio) + '.doc');
 }
 
 /* ================= TABS ================= */
