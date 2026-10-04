@@ -521,7 +521,7 @@ body.pdf-mode .cert-page{ position:relative !important; transform:none !importan
         <h2 class="font-cinzel text-gold-300 text-lg font-bold flex items-center gap-2"><i class="fa-solid fa-file-pdf"></i>Formatos PDF base</h2>
         <p class="text-xs text-slate-400 mt-1">Consulta los 3 formatos en blanco del catálogo EAMR tal como se publican. Para generar los documentos ya llenados, usa las pestañas Certificado, Contrato y Anexo Técnico.</p>
       </div>
-      <div id="pdfvTabs" class="grid sm:grid-cols-3 gap-2" role="tablist" aria-label="Formatos PDF disponibles"></div>
+      <div id="pdfvTabs" class="grid sm:grid-cols-2 lg:grid-cols-4 gap-2" role="tablist" aria-label="Formatos PDF disponibles"></div>
       <div class="flex flex-wrap items-center justify-between gap-2 border border-gold-500/20 rounded-t-lg bg-slate-900/60 px-3 py-2">
         <span class="text-xs font-semibold text-gold-300 uppercase tracking-wide"><span id="pdfvName">—</span> <small id="pdfvPages" class="text-slate-500 normal-case font-normal ml-1"></small></span>
         <div class="flex flex-wrap items-center gap-1.5">
@@ -2007,8 +2007,9 @@ function installApp(){ if(deferredPrompt){ deferredPrompt.prompt(); deferredProm
   var PDF_BASES = ['./', 'documentos/', 'https://edheller33.github.io/CERTIFICADO_EAMR_SUIT/', 'https://edheller33.github.io/Music_dem/documentos/'];
   var DOCS = [
     { icon:'fa-certificate',    short:'Certificado de Autenticidad', title:'Certificado de Autenticidad', desc:'Código hash y huella acústica de la obra.', file:'certificado_de_autenticidad.pdf' },
-    { icon:'fa-file-lines',     short:'Ficha Técnica (Anexo)',       title:'Ficha de Entrega y Especificaciones Técnicas', desc:'Formatos de entrega, derechos cedidos y alcance legal.', file:'ficha_anexo_tecnico.pdf' },
-    { icon:'fa-file-signature', short:'Contrato de Cesión',          title:'Contrato de Cesión de Derechos Patrimoniales', desc:'Cesión onerosa con exclusividad y cláusula de alcance IA.', file:'contrato_de_cesion.pdf' }
+    { icon:'fa-file-lines',     short:'Ficha Técnica (Anexo)',       title:'Ficha de Entrega y Especificaciones Técnicas', desc:'Formatos de entrega, derechos cedidos y alcance legal.', file:'ficha_tecnica.pdf' },
+    { icon:'fa-file-signature', short:'Contrato de Cesión',          title:'Contrato de Cesión de Derechos Patrimoniales', desc:'Cesión onerosa con exclusividad y cláusula de alcance IA.', file:'contrato_de_cesion.pdf' },
+    { icon:'fa-envelope-open-text', short:'Carta de Presentación', title:'Carta de presentación al restaurante', desc:'Carta de cortesía con la canción, lista para enviar.', file:'carta_de_presentacion.pdf' }
   ];
   var PDFJS_SRC = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
   var PDFJS_WORKER = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
